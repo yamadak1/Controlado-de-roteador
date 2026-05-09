@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Rede Ultra - Família Silva</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb; --danger: #dc2626; --dark: #1e293b; --light: #f1f5f9;
+            --gray: #64748b; --success: #16a34a; --warning: #f59e0b;
+            --card-bg: #ffffff; --text-main: #1e293b; --border: #e2e8f0;
+        }
+
+        body.dark-mode {
+            --light: #0f172a; --card-bg: #1e293b; --text-main: #f1f5f9;
+            --gray: #94a3b8; --border: #334155;
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; background: var(--light); color: var(--text-main); margin: 0; overflow-x: hidden; transition: 0.3s; }
+        
+        /* Menu e Navegação */
+        .header-actions { position: fixed; top: 15px; right: 15px; z-index: 1001; display: flex; gap: 10px; }
+        .btn-theme { background: var(--dark); color: white; border: none; padding: 10px; border-radius: 50%; cursor: pointer; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
+        .menu-toggle { position: fixed; top: 15px; left: 15px; z-index: 1000; background: var(--dark); color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; }
+
+        .sidebar { background: #0f172a; color: white; padding: 20px; height: 100vh; width: 250px; position: fixed; transition: transform 0.3s ease; z-index: 999; }
+        .sidebar h2 { font-size: 20px; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
+        .menu-item { padding: 12px; margin: 5px 0; cursor: pointer; border-radius: 5px; transition: 0.3s; font-size: 14px; }
+        .menu-item:hover { background: rgba(255,255,255,0.1); }
+        .menu-item.active { background: var(--primary); font-weight: bold; }
+        
+        .main-content { margin-left: 290px; padding: 20px; transition: 0.3s; }
+
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); padding-top: 60px; }
+            .sidebar.active-menu { transform: translateX(0); }
+            .main-content { margin-left: 0; padding-top: 60px; }
+        }
+
+        /* UI de Cards */
+        .card { background: var(--card-bg); border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; border: 1px solid var(--border); }
+        .card h3 { margin-top: 0; margin-bottom: 15px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn-speed { background: var(--primary); color: white; width: 100%; margin-top: 20px; }
+        
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; text-transform: uppercase; }
+        .badge-success { background: #dcfce7; color: #166534; }
+        .badge-info { background: #e0f2fe; color: #0369a1; }
+        .badge-danger { background: #fee2e2; color: #991b1b; }
+
+        .log-container { background: #000; color: #0f0; font-family: monospace; padding: 10px; border-radius: 5px; height: 100px; overflow-y: auto; font-size: 12px; margin-top: 10px; border: 1px solid #333; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid var(--border); color: var(--text-main); font-size: 14px; }
+
+        /* Gráfico de Velocidade */
+        .gauge-container { width: 100%; max-width: 300px; margin: 0 auto; position: relative; }
+        .gauge-text { position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); font-size: 24px; font-weight: bold; text-align: center; }
+
+        /* Modais */
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1999; }
+        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--card-bg); padding: 25px; border-radius: 15px; z-index: 2000; text-align: center; width: 85%; max-width: 380px; border: 1px solid var(--border); max-height: 80vh; overflow-y: auto; }
+        
+        .action-list { list-style: none; padding: 0; margin-top: 15px; }
+        .btn-action { width: 100%; text-align: left; background: var(--light); color: var(--text-main); padding: 12px; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; margin-bottom: 10px; display: flex; justify-content: space-between; }
+        .btn-action.danger { color: var(--danger); border-color: var(--danger); }
+
+        .config-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        select, input[type="text"], input[type="time"], input[type="number"] { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text-main); margin-top: 5px; box-sizing: border-box; }
+        
+        .tab-content { display: none; animation: fadeIn 0.3s ease; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+<div class="header-actions">
+    <button class="btn-theme" onclick="toggleDarkMode()">🌓</button>
+</div>
+
+<button class="menu-toggle" onclick="toggleMenu()">☰ Menu</button>
+
+<div class="sidebar" id="sidebar">
+    <h2>Network Manager</h2>
+    <p style="font-size: 12px; margin-bottom: 20px;">Status: <span style="color:var(--success)">● Online</span></p>
+    <div class="menu-item active" onclick="changeTab('painel', this)">Painel de Controle</div>
+    <div class="menu-item" onclick="changeTab('monitoramento', this)">Monitoramento</div>
+    <div class="menu-item" onclick="changeTab('visitante', this)">Acesso Visitante</div>
+    <div class="menu-item" onclick="changeTab('estatisticas', this)">Estatísticas</div>
+    <div class="menu-item" onclick="changeTab('historico', this)">Histórico</div>
+    <div class="menu-item" onclick="changeTab('configuracoes', this)">Configurações</div>
+</div>
+
+<div class="main-content">
+    
+    <div id="tab-painel" class="tab-content active">
+        <div class="card">
+            <h3>Rede: Família Silva_5G</h3>
+            <div class="gauge-container">
+                <canvas id="speedGauge"></canvas>
+                <div class="gauge-text" id="gauge-text">0<br><span style="font-size:12px;">Mbps</span></div>
+            </div>
+            <div style="display: flex; justify-content: space-around; margin-top: 15px; text-align: center;">
+                <div><h4 id="ping-val" style="color:var(--warning); margin:0;">--</h4><small>Ping</small></div>
+                <div><h4 id="down-val" style="color:var(--primary); margin:0;">0.00</h4><small>Download</small></div>
+                <div><h4 id="up-val" style="color:var(--success); margin:0;">0.00</h4><small>Upload</small></div>
+            </div>
+            <button class="btn btn-speed" onclick="runFullTest()">Iniciar Teste Completo</button>
+        </div>
+
+        <div class="card">
+            <h3>Dispositivos Ativos (Monitoramento em Tempo Real)</h3>
+            <table>
+                <thead><tr><th>Dispositivo</th><th>IP Local</th><th>Uso de Banda</th><th>Perfil</th><th>Ação</th></tr></thead>
+                <tbody id="device-list">
+                    </tbody>
+            </table>
+            <p style="font-size: 11px; color: var(--gray); margin-top: 10px;">* Atualizando automaticamente a cada 3 segundos.</p>
+        </div>
+    </div>
+
+    <div id="tab-monitoramento" class="tab-content">
+        <div class="card">
+            <h3>Monitor de Apps & Consumo</h3>
+            <div style="margin-bottom: 15px;">
+                <label>Filtrar por Usuário:</label>
+                <select id="user-filter" onchange="filterAppData(this.value)">
+                    <option value="Todos">Todos</option>
+                    <option value="Arthur">Arthur</option>
+                    <option value="Natasha">Natasha</option>
+                    <option value="Xbox">Xbox</option>
+                </select>
+            </div>
+            <table>
+                <thead><tr><th>Usuário</th><th>Aplicativo</th><th>Tempo</th><th>Consumo</th></tr></thead>
+                <tbody id="app-usage-body">
+                    </tbody>
+            </table>
+            <div class="card" style="margin-top:15px; background:var(--primary); color:white; border:none;">
+                <strong>Total Visualizado: <span id="user-total-val">0.0 GB</span></strong>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-visitante" class="tab-content">
+        <div class="card" style="text-align: center;">
+            <h3>Gerar Acesso Temporário</h3>
+            <h2 id="guest-pass" style="letter-spacing: 4px; color: var(--primary); font-size: 32px;">--------</h2>
+            <button class="btn" onclick="generateGuestAccess()" style="background: var(--primary); color: white; width: 100%;">Gerar Nova Senha</button>
+            <div id="qr-result" style="display:none; margin-top: 20px;">
+                <img id="qr-img" src="" alt="QR WiFi" style="width: 150px;">
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-estatisticas" class="tab-content">
+        <div class="card"><h3>Carga da Rede por Horário</h3><canvas id="usageChart"></canvas></div>
+        <div class="card"><h3>Uso Semanal (GB)</h3><canvas id="lineChart"></canvas></div>
+    </div>
+
+    <div id="tab-historico" class="tab-content">
+        <div class="card">
+            <h3>Histórico de Testes</h3>
+            <table>
+                <thead><tr><th>Data</th><th>Ping</th><th>Down</th><th>Up</th></tr></thead>
+                <tbody id="historico-list"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="tab-configuracoes" class="tab-content">
+        <div class="card">
+            <h3>🛡️ Modo Kids & Filtro Adulto</h3>
+            <div class="config-grid">
+                <div>
+                    <label>Início do Bloqueio:</label>
+                    <input type="time" id="kids-start" value="08:00">
+                </div>
+                <div>
+                    <label>Fim do Bloqueio:</label>
+                    <input type="time" id="kids-end" value="21:00">
+                </div>
+            </div>
+            <div style="margin-top: 15px;">
+                <label>Status do Filtro Adulto:</label>
+                <button class="btn" id="btn-kids" onclick="toggleKidsMode()" style="background:var(--gray); color:white; width:100%; margin-top:5px;">Ativar Modo Kids</button>
+            </div>
+            <p style="font-size: 11px; color: var(--gray); margin-top: 10px;">* Bloqueia conteúdo adulto e restringe acesso fora do horário definido.</p>
+        </div>
+
+        <div class="card">
+            <h3>Otimização e DNS</h3>
+            <div class="config-grid">
+                <div>
+                    <label>DNS Seguro:</label>
+                    <select onchange="addLog('DNS alterado')">
+                        <option>Cloudflare (1.1.1.1)</option>
+                        <option>AdGuard (Block Ads)</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Prioridade QoS:</label>
+                    <select>
+                        <option>Equilibrado</option>
+                        <option>Modo Gamer (Xbox/Arthur)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="overlay" id="overlay" onclick="closeModal()"></div>
+<div id="device-modal" class="modal">
+    <h3 id="modal-device-name">Dispositivo</h3>
+    <p id="modal-device-ip" style="font-size: 12px; color: var(--gray);"></p>
+    
+    <div class="action-list">
+        <button class="btn-action" onclick="deviceAction('deslogar')">🚪 Deslogar Dispositivo <span>▶</span></button>
+        <button class="btn-action danger" onclick="deviceAction('expulsar')">🚫 Expulsar permanentemente <span>▶</span></button>
+        
+        <div class="btn-action" style="flex-direction: column; cursor: default; gap: 10px; border-color: var(--warning);">
+            <span style="font-weight: bold;">⏱️ Expulsar Temporariamente</span>
+            <div style="display: flex; gap: 5px; width: 100%;">
+                <input type="number" id="kick-time" value="30" style="width: 70px;">
+                <select id="kick-unit" style="flex: 1;">
+                    <option value="minutos">Minutos</option>
+                    <option value="horas">Horas</option>
+                </select>
+            </div>
+            <button class="btn" style="background: var(--warning); color: white; width: 100%;" onclick="deviceAction('temp')">Aplicar</button>
+        </div>
+    </div>
+    <button class="btn" onclick="closeModal()" style="background:var(--dark); color:white; width:100%; margin-top:10px;">Cancelar</button>
+</div>
+
+<script>
+    let kidsActive = false;
+    let selectedDevice = null;
+    let chartsInit = false;
+
+    // Dados dinâmicos para Arthur, Natasha e Xbox
+    const deviceData = [
+        { name: "Smartphone Arthur", ip: "192.168.1.10", usage: 2.1, profile: "ADMIN", user: "Arthur" },
+        { name: "Smartphone Natasha", ip: "192.168.1.22", usage: 5.4, profile: "SOCIAL", user: "Natasha" },
+        { name: "Xbox Series S", ip: "192.168.1.45", usage: 0.1, profile: "GAMING", user: "Xbox" },
+        { name: "Smart TV", ip: "192.168.1.15", usage: 15.8, profile: "STREAMING", user: "SmartTV" }
+    ];
+
+    const appUsageData = [
+        { user: "Arthur", app: "VS Code", time: "4h", consumption: 1.2 },
+        { user: "Arthur", app: "Chrome", time: "2h", consumption: 0.8 },
+        { user: "Natasha", app: "Instagram", time: "3h", consumption: 4.5 },
+        { user: "Natasha", app: "TikTok", time: "1h", consumption: 2.3 },
+        { user: "Xbox", app: "Warzone", time: "2h", consumption: 12.5 }
+    ];
+
+    function toggleDarkMode() { document.body.classList.toggle('dark-mode'); }
+    function toggleMenu() { document.getElementById('sidebar').classList.toggle('active-menu'); }
+
+    function changeTab(tabId, el) {
+        document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        el.classList.add('active');
+        document.getElementById('tab-' + tabId).classList.add('active');
+        if (window.innerWidth <= 768) toggleMenu();
+        if(tabId === 'monitoramento') filterAppData('Todos');
+        if(tabId === 'estatisticas') renderCharts();
+    }
+
+    // ATUALIZAÇÃO AUTOMÁTICA DE USO (PAINEL PRINCIPAL)
+    function autoRefreshUsage() {
+        const list = document.getElementById('device-list');
+        list.innerHTML = "";
+        deviceData.forEach(dev => {
+            // Simula variação real de banda
+            const variacao = (Math.random() * 3 - 1.5).toFixed(1);
+            const usoReal = Math.max(0.1, parseFloat(dev.usage) + parseFloat(variacao)).toFixed(1);
+            list.innerHTML += `
+                <tr>
+                    <td><strong>${dev.name}</strong></td>
+                    <td><small>${dev.ip}</small></td>
+                    <td style="color:var(--primary); font-weight:bold;">${usoReal} Mbps</td>
+                    <td><span class="badge ${dev.user === 'Arthur' ? 'badge-info' : 'badge-success'}">${dev.profile}</span></td>
+                    <td><button class="btn" style="padding:5px;" onclick="openDeviceModal('${dev.name}', '${dev.ip}')">⚙️</button></td>
+                </tr>`;
+        });
+    }
+
+    // FILTRO DINÂMICO DE MONITORAMENTO (NÃO ESTÁTICO)
+    function filterAppData(user) {
+        const body = document.getElementById('app-usage-body');
+        body.innerHTML = "";
+        let total = 0;
+        
+        appUsageData.forEach(item => {
+            if (user === "Todos" || item.user === user) {
+                // Adiciona pequena variação para parecer real
+                const realCons = (item.consumption + (Math.random() * 0.1)).toFixed(2);
+                body.innerHTML += `<tr><td>${item.user}</td><td>${item.app}</td><td>${item.time}</td><td>${realCons} GB</td></tr>`;
+                total += parseFloat(realCons);
+            }
+        });
+        document.getElementById('user-total-val').innerText = total.toFixed(1) + " GB";
+    }
+
+    function openDeviceModal(name, ip) {
+        selectedDevice = name;
+        document.getElementById('modal-device-name').innerText = name;
+        document.getElementById('modal-device-ip').innerText = "IP: " + ip;
+        document.getElementById('overlay').style.display = 'block';
+        document.getElementById('device-modal').style.display = 'block';
+    }
+
+    function deviceAction(type) {
+        const time = document.getElementById('kick-time').value;
+        const unit = document.getElementById('kick-unit').value;
+        alert(`Ação ${type} aplicada a ${selectedDevice}. Tempo: ${time} ${unit}`);
+        closeModal();
+    }
+
+    function closeModal() {
+        document.getElementById('overlay').style.display = 'none';
+        document.getElementById('device-modal').style.display = 'none';
+    }
+
+    function toggleKidsMode() {
+        kidsActive = !kidsActive;
+        const btn = document.getElementById('btn-kids');
+        const start = document.getElementById('kids-start').value;
+        const end = document.getElementById('kids-end').value;
+        
+        btn.innerText = kidsActive ? "Filtro Kids ATIVO" : "Ativar Modo Kids";
+        btn.style.background = kidsActive ? "var(--success)" : "var(--gray)";
+        alert(kidsActive ? `Filtro Adulto ativado entre ${start} e ${end}` : "Filtro Adulto desativado.");
+    }
+
+    // VELOCÍMETRO
+    const ctxG = document.getElementById('speedGauge').getContext('2d');
+    let speedChart = new Chart(ctxG, { type: 'doughnut', data: { datasets: [{ data: [0, 100], backgroundColor: ['#2563eb', '#e2e8f0'], cutout: '80%', circumference: 180, rotation: 270 }] }, options: { plugins: { legend: false } } });
+
+    function runFullTest() {
+        let speed = 0; const target = 450;
+        const int = setInterval(() => {
+            speed += 20;
+            if(speed >= target) {
+                clearInterval(int);
+                document.getElementById('down-val').innerText = target + ".4";
+                document.getElementById('up-val').innerText = "210.5";
+                document.getElementById('ping-val').innerText = "8ms";
+            }
+            speedChart.data.datasets[0].data = [speed, 500-speed];
+            speedChart.update();
+            document.getElementById('gauge-text').innerHTML = speed + "<br><small>Mbps</small>";
+        }, 30);
+    }
+
+    function renderCharts() {
+        if(chartsInit) return;
+        new Chart(document.getElementById('usageChart'), { type:'bar', data:{labels:['00h','06h','12h','18h'], datasets:[{label:'Carga %', data:[15, 30, 65, 95], backgroundColor:'#2563eb'}]} });
+        new Chart(document.getElementById('lineChart'), { type:'line', data:{labels:['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'], datasets:[{label:'Consumo GB', data:[12, 15, 18, 22, 35, 50, 42], borderColor:'#2563eb', fill:true}]} });
+        chartsInit = true;
+    }
+
+    // Loop de atualização automática (Uso Real)
+    setInterval(autoRefreshUsage, 3000);
+    window.onload = autoRefreshUsage;
+</script>
+</body>
+</html>
