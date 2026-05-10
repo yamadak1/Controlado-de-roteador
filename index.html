@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel de Rede Ultra - Família Silva</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         :root {
             --primary: #2563eb; --danger: #dc2626; --dark: #1e293b; --light: #f1f5f9;
@@ -72,6 +73,79 @@
         .tab-content { display: none; animation: fadeIn 0.3s ease; }
         .tab-content.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        /* QR Code estilizado */
+        #qrcode {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+        }
+        #qrcode div {
+            margin-bottom: 10px;
+        }
+        #qrcode p {
+            margin: 5px 0 0 0;
+            font-size: 14px;
+            color: var(--gray);
+        }
+
+        /* Menu Minimizado */
+        .sidebar.collapsed {
+            width: 60px;
+            transition: all 0.3s ease;
+        }
+        .sidebar.collapsed .menu-item span {
+            display: none;
+        }
+        .sidebar.collapsed .menu-item {
+            text-align: center;
+            padding: 15px 0;
+        }
+        .sidebar.collapsed h2 {
+            font-size: 16px;
+            text-align: center;
+        }
+        .sidebar.collapsed .menu-item i {
+            margin-right: 0;
+        }
+        .sidebar.collapsed .menu-item:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        .sidebar.collapsed .menu-item.active {
+            background: var(--primary);
+        }
+        .collapsed .menu-item span {
+            display: none;
+        }
+        .main-content.collapsed {
+            margin-left: 60px;
+            transition: margin-left 0.3s ease;
+        }
+        .sidebar.collapsed .status-text {
+            display: none;
+        }
+        
+        /* Estatísticas */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 20px; }
+        .stat-card { background: var(--card-bg); border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 1px solid var(--border); text-align: center; }
+        .stat-value { font-size: 28px; font-weight: bold; margin: 10px 0; }
+        .stat-label { font-size: 14px; color: var(--gray); }
+        .stat-trend { font-size: 12px; margin-top: 5px; }
+        .trend-up { color: var(--success); }
+        .trend-down { color: var(--danger); }
+        
+        /* Detalhes da Velocidade */
+        .speed-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-top: 20px; }
+        .speed-item { background: var(--light); border-radius: 10px; padding: 15px; text-align: center; }
+        .speed-value { font-size: 24px; font-weight: bold; margin: 10px 0; }
+        .speed-label { font-size: 12px; color: var(--gray); }
+        
+        /* Tempo e Status */
+        .timestamp { font-size: 12px; color: var(--gray); margin-bottom: 5px; }
+        .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: bold; }
+        .status-online { background: #dcfce7; color: #166534; }
+        .status-offline { background: #fee2e2; color: #991b1b; }
     </style>
 </head>
 <body>
@@ -83,17 +157,29 @@
 <button class="menu-toggle" onclick="toggleMenu()">☰ Menu</button>
 
 <div class="sidebar" id="sidebar">
-    <h2>Network Manager</h2>
-    <p style="font-size: 12px; margin-bottom: 20px;">Status: <span style="color:var(--success)">● Online</span></p>
-    <div class="menu-item active" onclick="changeTab('painel', this)">Painel de Controle</div>
-    <div class="menu-item" onclick="changeTab('monitoramento', this)">Monitoramento</div>
-    <div class="menu-item" onclick="changeTab('visitante', this)">Acesso Visitante</div>
-    <div class="menu-item" onclick="changeTab('estatisticas', this)">Estatísticas</div>
-    <div class="menu-item" onclick="changeTab('historico', this)">Histórico</div>
-    <div class="menu-item" onclick="changeTab('configuracoes', this)">Configurações</div>
+    <h2 id="sidebar-title">Network Manager</h2>
+    <p class="status-text" style="font-size: 12px; margin-bottom: 20px;">Status: <span style="color:var(--success)">● Online</span></p>
+    <div class="menu-item active" onclick="changeTab('painel', this)">
+        <span>📊 Painel</span>
+    </div>
+    <div class="menu-item" onclick="changeTab('monitoramento', this)">
+        <span>🔍 Monitoramento</span>
+    </div>
+    <div class="menu-item" onclick="changeTab('visitante', this)">
+        <span>👥 Visitantes</span>
+    </div>
+    <div class="menu-item" onclick="changeTab('estatisticas', this)">
+        <span>📈 Estatísticas</span>
+    </div>
+    <div class="menu-item" onclick="changeTab('historico', this)">
+        <span>🕒 Histórico</span>
+    </div>
+    <div class="menu-item" onclick="changeTab('configuracoes', this)">
+        <span>⚙️ Configurações</span>
+    </div>
 </div>
 
-<div class="main-content">
+<div class="main-content" id="mainContent">
     
     <div id="tab-painel" class="tab-content active">
         <div class="card">
@@ -149,15 +235,125 @@
             <h3>Gerar Acesso Temporário</h3>
             <h2 id="guest-pass" style="letter-spacing: 4px; color: var(--primary); font-size: 32px;">--------</h2>
             <button class="btn" onclick="generateGuestAccess()" style="background: var(--primary); color: white; width: 100%;">Gerar Nova Senha</button>
-            <div id="qr-result" style="display:none; margin-top: 20px;">
-                <img id="qr-img" src="" alt="QR WiFi" style="width: 150px;">
+            <div id="qr-result">
+                <div id="qrcode"></div>
             </div>
         </div>
     </div>
 
     <div id="tab-estatisticas" class="tab-content">
-        <div class="card"><h3>Carga da Rede por Horário</h3><canvas id="usageChart"></canvas></div>
-        <div class="card"><h3>Uso Semanal (GB)</h3><canvas id="lineChart"></canvas></div>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Média Mensal</div>
+                <div class="stat-value">24.6 GB</div>
+                <div class="stat-trend trend-up">+12% este mês</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Pico de Uso</div>
+                <div class="stat-value">85.2 GB</div>
+                <div class="stat-trend trend-down">-5% semana passada</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Tempo Online</div>
+                <div class="stat-value">99.8%</div>
+                <div class="stat-trend trend-up">+0.2% desde o início</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Desempenho</div>
+                <div class="stat-value">98.5%</div>
+                <div class="stat-trend trend-up">+2.1% desde o início</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Detalhes de Velocidade</h3>
+            <div class="speed-details">
+                <div class="speed-item">
+                    <div class="speed-label">Ping</div>
+                    <div class="speed-value" id="ping-detail">15 ms</div>
+                    <div class="speed-label">Latência</div>
+                </div>
+                <div class="speed-item">
+                    <div class="speed-label">Download</div>
+                    <div class="speed-value" id="download-detail">245.6 Mbps</div>
+                    <div class="speed-label">Velocidade</div>
+                </div>
+                <div class="speed-item">
+                    <div class="speed-label">Upload</div>
+                    <div class="speed-value" id="upload-detail">89.2 Mbps</div>
+                    <div class="speed-label">Velocidade</div>
+                </div>
+                <div class="speed-item">
+                    <div class="speed-label">Latência</div>
+                    <div class="speed-value" id="latency-detail">32 ms</div>
+                    <div class="speed-label">Variação</div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <h4>Conexão Estável</h4>
+                <div style="height: 40px; background: #e2e8f0; border-radius: 20px; overflow: hidden;">
+                    <div style="width: 98%; height: 100%; background: var(--success); border-radius: 20px;"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 5px; font-size: 12px;">
+                    <span>Iniciando</span>
+                    <span>Conectado</span>
+                    <span>Estável</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Carga da Rede por Horário</h3><canvas id="usageChart"></canvas>
+        </div>
+        <div class="card">
+            <h3>Uso Semanal (GB)</h3><canvas id="lineChart"></canvas>
+        </div>
+        
+        <div class="card">
+            <h3>Conexões Ativas</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Dispositivo</th>
+                        <th>IP</th>
+                        <th>Conexão</th>
+                        <th>Estado</th>
+                        <th>Tempo Online</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Smartphone Arthur</td>
+                        <td>192.168.1.10</td>
+                        <td>WiFi 5G</td>
+                        <td><span class="status-badge status-online">Online</span></td>
+                        <td>2h 34m</td>
+                    </tr>
+                    <tr>
+                        <td>Smartphone Natasha</td>
+                        <td>192.168.1.22</td>
+                        <td>WiFi 5G</td>
+                        <td><span class="status-badge status-online">Online</span></td>
+                        <td>1h 12m</td>
+                    </tr>
+                    <tr>
+                        <td>Xbox Series S</td>
+                        <td>192.168.1.45</td>
+                        <td>WiFi 5G</td>
+                        <td><span class="status-badge status-online">Online</span></td>
+                        <td>3h 56m</td>
+                    </tr>
+                    <tr>
+                        <td>Smart TV</td>
+                        <td>192.168.1.15</td>
+                        <td>WiFi 5G</td>
+                        <td><span class="status-badge status-online">Online</span></td>
+                        <td>5h 18m</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <div id="tab-historico" class="tab-content">
@@ -165,7 +361,26 @@
             <h3>Histórico de Testes</h3>
             <table>
                 <thead><tr><th>Data</th><th>Ping</th><th>Down</th><th>Up</th></tr></thead>
-                <tbody id="historico-list"></tbody>
+                <tbody id="historico-list">
+                    <tr>
+                        <td>2023-05-01</td>
+                        <td>12ms</td>
+                        <td>120.5 Mbps</td>
+                        <td>45.2 Mbps</td>
+                    </tr>
+                    <tr>
+                        <td>2023-05-02</td>
+                        <td>8ms</td>
+                        <td>150.2 Mbps</td>
+                        <td>52.1 Mbps</td>
+                    </tr>
+                    <tr>
+                        <td>2023-05-03</td>
+                        <td>15ms</td>
+                        <td>110.8 Mbps</td>
+                        <td>38.7 Mbps</td>
+                    </tr>
+                </tbody>
             </table>
         </div>
     </div>
@@ -240,6 +455,8 @@
     let kidsActive = false;
     let selectedDevice = null;
     let chartsInit = false;
+    let qrCode = null;
+    let isMenuCollapsed = false;
 
     // Dados dinâmicos para Arthur, Natasha e Xbox
     const deviceData = [
@@ -258,7 +475,26 @@
     ];
 
     function toggleDarkMode() { document.body.classList.toggle('dark-mode'); }
-    function toggleMenu() { document.getElementById('sidebar').classList.toggle('active-menu'); }
+    
+    function toggleMenu() {
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+        isMenuCollapsed = !isMenuCollapsed;
+        
+        if (isMenuCollapsed) {
+            sidebar.classList.add('collapsed');
+            mainContent.classList.add('collapsed');
+            document.getElementById('sidebar-title').textContent = 'NM';
+        } else {
+            sidebar.classList.remove('collapsed');
+            mainContent.classList.remove('collapsed');
+            document.getElementById('sidebar-title').textContent = 'Network Manager';
+        }
+        
+        // Animação suave ao alternar
+        sidebar.style.transition = 'all 0.3s ease';
+        mainContent.style.transition = 'margin-left 0.3s ease';
+    }
 
     function changeTab(tabId, el) {
         document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
@@ -268,6 +504,9 @@
         if (window.innerWidth <= 768) toggleMenu();
         if(tabId === 'monitoramento') filterAppData('Todos');
         if(tabId === 'estatisticas') renderCharts();
+        if(tabId === 'historico') {
+            renderHistoricTable();
+        }
     }
 
     // ATUALIZAÇÃO AUTOMÁTICA DE USO (PAINEL PRINCIPAL)
@@ -350,6 +589,12 @@
                 document.getElementById('down-val').innerText = target + ".4";
                 document.getElementById('up-val').innerText = "210.5";
                 document.getElementById('ping-val').innerText = "8ms";
+                
+                // Atualiza os detalhes da velocidade
+                document.getElementById('ping-detail').innerText = "8 ms";
+                document.getElementById('download-detail').innerText = "450.4 Mbps";
+                document.getElementById('upload-detail').innerText = "210.5 Mbps";
+                document.getElementById('latency-detail').innerText = "22 ms";
             }
             speedChart.data.datasets[0].data = [speed, 500-speed];
             speedChart.update();
@@ -359,14 +604,124 @@
 
     function renderCharts() {
         if(chartsInit) return;
-        new Chart(document.getElementById('usageChart'), { type:'bar', data:{labels:['00h','06h','12h','18h'], datasets:[{label:'Carga %', data:[15, 30, 65, 95], backgroundColor:'#2563eb'}]} });
-        new Chart(document.getElementById('lineChart'), { type:'line', data:{labels:['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'], datasets:[{label:'Consumo GB', data:[12, 15, 18, 22, 35, 50, 42], borderColor:'#2563eb', fill:true}]} });
+        new Chart(document.getElementById('usageChart'), { 
+            type:'bar', 
+            data:{
+                labels:['00h','06h','12h','18h'], 
+                datasets:[{
+                    label:'Carga %', 
+                    data:[15, 30, 65, 95], 
+                    backgroundColor:'#2563eb'
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                }
+            }
+        });
+        new Chart(document.getElementById('lineChart'), { 
+            type:'line', 
+            data:{
+                labels:['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'], 
+                datasets:[{
+                    label:'Consumo GB', 
+                    data:[12, 15, 18, 22, 35, 50, 42], 
+                    borderColor:'#2563eb', 
+                    fill:true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
         chartsInit = true;
+    }
+
+    // Função para gerar senha aleatória e QR code
+    function generateGuestAccess() {
+        // Gera uma senha aleatória de 8 caracteres
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let password = '';
+        for (let i = 0; i < 8; i++) {
+            password += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+
+        // Exibe a senha
+        document.getElementById('guest-pass').textContent = password;
+        
+        // Gera QR Code
+        const wifiInfo = `WIFI:S:Família Silva_5G;T:WPA;P:${password};;`;
+        
+        // Remove QR Code anterior se existir
+        const qrContainer = document.getElementById('qrcode');
+        if (qrCode) {
+            qrCode.clear();
+        }
+        
+        // Cria novo QR Code
+        qrCode = new QRCode(qrContainer, {
+            text: wifiInfo,
+            width: 150,
+            height: 150,
+            colorDark: "#000000",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
+        
+        // Mostra o contêiner do QR Code
+        qrContainer.style.display = 'block';
+    }
+
+    // Renderizar tabela de histórico
+    function renderHistoricTable() {
+        // Esta função já está implementada no HTML mas adicionamos para garantir que funcione corretamente
+        const historyList = document.getElementById('historico-list');
+        if (historyList.children.length === 0) {
+            historyList.innerHTML = `
+                <tr>
+                    <td>2023-05-01</td>
+                    <td>12ms</td>
+                    <td>120.5 Mbps</td>
+                    <td>45.2 Mbps</td>
+                </tr>
+                <tr>
+                    <td>2023-05-02</td>
+                    <td>8ms</td>
+                    <td>150.2 Mbps</td>
+                    <td>52.1 Mbps</td>
+                </tr>
+                <tr>
+                    <td>2023-05-03</td>
+                    <td>15ms</td>
+                    <td>110.8 Mbps</td>
+                    <td>38.7 Mbps</td>
+                </tr>
+            `;
+        }
     }
 
     // Loop de atualização automática (Uso Real)
     setInterval(autoRefreshUsage, 3000);
-    window.onload = autoRefreshUsage;
+    window.onload = function() {
+        autoRefreshUsage();
+        // Inicializa com uma senha gerada automaticamente
+        generateGuestAccess();
+        
+        // Inicializa os valores dos detalhes de velocidade
+        document.getElementById('ping-detail').innerText = "15 ms";
+        document.getElementById('download-detail').innerText = "245.6 Mbps";
+        document.getElementById('upload-detail').innerText = "89.2 Mbps";
+        document.getElementById('latency-detail').innerText = "32 ms";
+    };
 </script>
 </body>
 </html>
